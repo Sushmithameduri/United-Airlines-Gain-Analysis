@@ -1,0 +1,405 @@
+---
+title: "United Airlines Departure Delays Analysis (2013)"
+author: "Sushmitha Meduri"
+date: "2023-10-22"
+output:
+  html_document: default
+  pdf_document: default
+---
+# For conducting an exploratory data analysis on the departure delays of the United Airlines, loading the dataset of which has the airlines data is important. The data in this study is from 'nycflights13' package. This package contains data on all flights departing from New York City airports in 2013
+
+```{r}
+# Step 1: Loading the nycflights13 package and necessary libraries
+
+library(nycflights13)
+library(tidyverse)
+
+
+# Step 2:Data Preparation: Filtering the relevant columns for the United Airlines flights (UA)
+
+joined_data <- flights %>% 
+  left_join(weather, by = c("year", "month", "day", "hour", "origin"))
+ua_flights_data <- joined_data %>%
+  filter(carrier == "UA")
+View(ua_flights_data)
+
+# Create late and very_late variables
+
+ua_flights_data <- ua_flights_data %>%
+  filter(!is.na(dep_delay)) %>%
+  mutate(late = dep_delay > 15,
+         very_late = dep_delay > 30)
+
+ggplot(ua_flights_data, mapping = aes(x=ua_flights_data$dep_delay))+
+  geom_histogram()+
+  labs(x = 'Departure Delays (minutes)', y = "Frequency")
+
+```
+
+# Step 3: Exploratory Data Analysis:
+
+# Time of day
+```{r}
+# Barplot of departure delays by time of day(based on hours of day)
+ggplot(data = ua_flights_data, mapping= aes(x = hour, y = dep_delay))+
+  geom_col()+
+  labs(main = "Departure Delays by Time of Day",
+       x = "Hour of Departure",
+       y = "Departure Delay (minutes)")
+
+
+# Scatterplot of departure delays by time of day
+ggplot(data = ua_flights_data, mapping= aes(x = hour, y = dep_delay))+
+  geom_point()+
+  labs(main = "Departure Delays by Time of Day",
+       x = "Hour of Departure",
+       y = "Departure Delay (minutes)")
+
+```
+
+# Time of year
+```{r}
+# Boxplots are very useful ways to give a quick visual summary of a set of numerical data. 
+# Boxplot of departure delays by time of year(based on months)
+
+ggplot(data = ua_flights_data, mapping= aes(x = month, y = dep_delay))+
+  geom_boxplot(alpha = 0.2)+
+  labs(main = "Departure Delays by Time of year",
+       x = "Month",
+       y = "Departure Delay (minutes)")
+
+
+# Barplot of departure delays by time of day
+ggplot(data = ua_flights_data, mapping= aes(x = month, y = dep_delay))+
+  geom_col()+
+  labs(main = "Departure Delays by Time of month",
+       x = "Month",
+       y = "Departure Delay (minutes)")
+
+```
+# Temperature vs Departure delay
+```{r}
+ggplot(data = ua_flights_data, mapping= aes(x = temp, y = dep_delay))+
+  geom_point(alpha = 0.2)+
+  labs(main = "Departure Delays by Temperature",
+       x = "Temperature",
+       y = "Departure Delay (minutes)")
+ggplot(data = ua_flights_data, mapping= aes(x = month, y = dep_delay))+
+  geom_boxplot(alpha = 0.2)+
+  labs(main = "Departure Delays by Temperature",
+       x = "Temperature",
+       y = "Departure Delay (minutes)")
+
+```
+# Windspeed vs Departure delay
+```{r}
+ggplot(data = ua_flights_data, mapping= aes(x = wind_speed, y = dep_delay))+
+  geom_point(alpha = 0.2)+
+  labs(main = "Departure Delays by windspeed",
+       x = "Windspeed",
+       y = "Departure Delay (minutes)")
+ggplot(data = ua_flights_data, mapping= aes(x = wind_speed, y = dep_delay))+
+  geom_boxplot(alpha = 0.2,)+
+  labs(main = "Departure Delays by Windspeed",
+       x = "Windspeed",
+       y = "Departure Delay (minutes)")
+```
+# Precipitation vs Departure delay
+```{r}
+ggplot(data = ua_flights_data, mapping= aes(x = precip, y = dep_delay))+
+  geom_point(alpha = 0.2)+
+  labs(main = "Departure Delays by Precipitation",
+       x = "Precipitation",
+       y = "Departure Delay (minutes)")
+
+```
+
+# Visibility vs departure delays
+```{r}
+ggplot(data = ua_flights_data, mapping= aes(x = visib, y = dep_delay))+
+  geom_point(alpha = 0.2)+
+  labs(main = "Departure Delays by Visibility",
+       x = "Visibility",
+       y = "Departure Delay (minutes)")
+
+```
+
+
+# Step-4: Permutation Tests
+
+```{r}
+#Calculate the departure delay
+#ua_dep_delay <- (ua_flights_data$dep_delay) - (ua_flights_data$sched_dep_time)
+
+# Temperature 
+observed <- mean(ua_flights_data$temp[ua_flights_data$late == TRUE], na.rm = TRUE) - mean(ua_flights_data$temp[ua_flights_data$late == FALSE], na.rm = TRUE)
+
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$late == TRUE,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$temp[index], na.rm = TRUE) - mean(ua_flights_data$temp[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result >= observed)+1)/ (N + 1)
+p_value
+
+```
+
+```{r}
+
+#Wind speed
+observed <- mean(ua_flights_data$wind_speed[ua_flights_data$late == TRUE], na.rm = TRUE) - mean(ua_flights_data$wind_speed[ua_flights_data$late == FALSE], na.rm = TRUE)
+
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$late == TRUE,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$wind_speed[index], na.rm = TRUE) - mean(ua_flights_data$wind_speed[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result >= observed)+1)/ (N + 1)
+p_value
+
+```
+```{r}
+#Precipitation 
+observed <- mean(ua_flights_data$precip[ua_flights_data$late == TRUE], na.rm = TRUE) - mean(ua_flights_data$precip[ua_flights_data$late == FALSE], na.rm = TRUE)
+
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$late == TRUE,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$precip[index], na.rm = TRUE) - mean(ua_flights_data$precip[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result >= observed)+1)/ (N + 1)
+p_value
+```
+```{r}
+#  Visibility
+
+observed <- mean(ua_flights_data$visib[ua_flights_data$late == TRUE], na.rm = TRUE) - mean(ua_flights_data$visib[ua_flights_data$late == FALSE], na.rm = TRUE)
+
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$late == TRUE,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$visib[index], na.rm = TRUE) - mean(ua_flights_data$visib[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result <= observed)+1)/ (N + 1)
+p_value
+```
+
+```{r}
+# Time of Day
+
+morning_delays <- ua_flights_data$dep_delay[ua_flights_data$hour <= 12] # From 12am to 12pm
+evening_night_delays <- ua_flights_data$dep_delay[ua_flights_data$hour > 12]  # From 12pm to midnight
+                                            
+observed <- mean(morning_delays, na.rm = TRUE) - mean(evening_night_delays, na.rm = TRUE)
+
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$hour <= 12,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$dep_delay[index], na.rm = TRUE) - mean(ua_flights_data$dep_delay[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result <= observed)+1)/ (N + 1)
+p_value
+
+```
+
+```{r}
+# Time of year
+
+summer_delays <- ua_flights_data$dep_delay[ua_flights_data$month >= 3 & ua_flights_data$month <= 8] 
+winter_delays <- ua_flights_data$dep_delay[ua_flights_data$month >= 9 | ua_flights_data$month <= 2]  
+
+                                            
+observed <- mean(summer_delays, na.rm = TRUE) - mean(winter_delays, na.rm = TRUE)
+observed
+# N = number of simulations we will use
+N <- 10^3 - 1
+
+#sample.size = the number of observations in our sample
+sample.size = nrow(ua_flights_data)
+#group.1.size = the number of observations in the first group
+
+group.1.size = nrow(ua_flights_data[ua_flights_data$month >= 3 & ua_flights_data$month <= 8,])
+
+#create a blank vector to store the simulation results
+result <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled will be treated as the "EV" group, indexes not sample as "UA"
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean arrival delay between the index and non-index groups
+  result[i] = mean(ua_flights_data$dep_delay[index], na.rm = TRUE) - mean(ua_flights_data$dep_delay[-index], na.rm=TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+ggplot(data=tibble(result), mapping = aes(x=result)) + 
+  geom_histogram(color = "white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+p_value <- 2*(sum(result >= observed)+1)/ (N + 1)
+p_value
+```
+
+
+
+
+
+
+
+
+
+
