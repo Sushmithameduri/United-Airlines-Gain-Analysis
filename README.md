@@ -61,9 +61,3 @@ Flight delays incur substantial operational costs and passenger dissatisfaction.
 ## Contributing
 
 Contributions are welcome! Please submit issues or pull requests to enhance analysis, extend methodology, or update documentation.
-
-## Contact
-
-**Sushmitha Meduri**
-Master of Science, Data Science
-Seattle University
